@@ -7,14 +7,22 @@
 # 更新：2019.09.28
 # -----------------------------------------------------
 
-divid_1="=============================================="
-divid_2="----------------------------------------------"
+r_color="\033[1;91m"
+g_color="\033[1;92m"
+y_color="\033[0;93m"
+c_color="\033[0;36m"
+w_color="\033[0;37m"
+b_color="\033[1;90m"
+e_color="\033[0m"
+
+divid_1="${b_color}==============================================${e_color}"
+divid_2="${b_color}----------------------------------------------${e_color}"
 
 cd ~ && clear
 
-echo $divid_1
-echo "准备上传 KindleEar"
-echo $divid_1
+echo -e $divid_1
+echo "准备上传 KindleEar 源代码"
+echo -e $divid_1
 
 
 source_url="https://github.com/cdhigh/KindleEar.git"
@@ -41,17 +49,19 @@ descriptions=(
 )
 
 
+echo -e "${w_color}来源: $source_url${e_color}"
+echo -e $divid_2
+
 if [ ! -d $source_path ]; then
-    echo "开始拉取 KindleEar 源代码"
-    echo $divid_2
-    echo "源代码来源：$source_url"
+    echo -e "${c_color}开始拉取 KindleEar 源代码"
     git clone $source_url
 else
     response="y"
-    read -r -p "源代码已存在，是否重新拉取？[y/N] " response
+    echo -n -e ${y_color}"源代码已存在，是否重新拉取？[y/N]${e_color} "
+    read -r response
     if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        echo $divid_2
-        echo "源代码来源：$source_url"
+        echo -e $divid_2
+        echo -e "${c_color}开始拉取 KindleEar 源代码"
         bak_email=$(sed -n "s/^SRC_EMAIL\ =\ \"\(.*\)\".*#.*/\1/p" $config_py)
         bak_appid=$(sed -n "s/^DOMAIN\ =\ \"http\(\|s\):\/\/\(.*\)\.appspot\.com\/\".*#.*/\2/p" $config_py)
 
@@ -71,39 +81,49 @@ else
     fi
 fi
 
-
-current_email=$(sed -n "s/^SRC_EMAIL\ =\ \"\(.*\)\".*#.*/\1/p" $config_py)
-current_appid=$(sed -n "s/^DOMAIN\ =\ \"http\(\|s\):\/\/\(.*\)\.appspot\.com\/\".*#.*/\2/p" $config_py)
-
-echo $divid_1
-if [ $current_email = "akindleear@gmail.com" -o $current_appid = "kindleear" ]; then
-    echo "请按提示修改必要的 APP 配置参数"
-    echo $divid_2
+if [ ! -f $config_py -o ! $app_yaml -o ! $module_worker_yaml ]; then
+    echo -e $divid_2
+    echo -e "${r_color}上传失败${e_color}"
+    echo -e $divid_1
+    exit 0
 fi
-echo "当前的 Gmail 为："$current_email
-echo "当前的 APPID 为："$current_appid
+
+email=$(sed -n "s/^SRC_EMAIL\ =\ \"\(.*\)\".*#.*/\1/p" $config_py)
+appid=$(sed -n "s/^DOMAIN\ =\ \"http\(\|s\):\/\/\(.*\)\.appspot\.com\/\".*#.*/\2/p" $config_py)
+
+echo -e ${e_color}$divid_1
+if [ $email = "akindleear@gmail.com" -o $appid = "kindleear" ]; then
+    echo -e "${y_color}请按提示修改必要的 APP 配置参数${e_color}"
+    echo -e $divid_2
+fi
+echo -e "当前的 Gmail 为："${g_color}$email${e_color}
+echo -e "当前的 APPID 为："${g_color}$appid${e_color}
 
 response="y"
-if [ ! $current_email = "akindleear@gmail.com" -o ! $current_appid = "kindleear" ]; then
-    echo $divid_2
-    read -r -p "是否重新修改 APP 必要配置参数? [y/N] " response
+if [ ! $email = "akindleear@gmail.com" -o ! $appid = "kindleear" ]; then
+    echo -e $divid_2
+    echo -n -e "${y_color}是否重新修改 APP 必要配置参数? [y/N]${e_color} "
+    read -r response
 fi
 
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo $divid_2
+    echo -e $divid_2
     read -r -p "请输入你的 Gmail 地址：" email
     sed -i "s/^SRC_EMAIL\ =\ \".*\"/SRC_EMAIL\ =\ \"$email\"/g" $config_py
     read -r -p "请输入你的 APP ID：" appid
     sed -i "s/^application:\ .*/application:\ $appid/g" $app_yaml $module_worker_yaml
-    sed -i "s/^DOMAIN = \"http\(\|s\):\/\/.*\.appspot\.com\/\"/DOMAIN = \"http:\/\/$appid\.appspot\.com\/\"/g" $config_py
+    pattern="^DOMAIN\ =\ \"http\(\|s\):\/\/.*\.appspot\.com\/\""
+    replace="DOMAIN\ =\ \"http:\/\/$appid\.appspot\.com\/\""
+    sed -i "s/$pattern/$replace/g" $config_py
 fi
-echo $divid_1
+echo -e $divid_1
 
 
 response="N"
-read -r -p "是否修改其它相关配置参数？[y/N] " response
+echo -n -e "${y_color}是否修改其它相关配置参数？[y/N]${e_color} "
+read -r response
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo $divid_2
+    echo -e $divid_2
     index=0
     for parameter in ${parameters[@]}; do
         old_value=$(sed -n "s/^$parameter\ =\ \(.*\)/\1/p" $config_py)
@@ -118,17 +138,19 @@ if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
         let index+=1
     done
 fi
-echo $divid_1
+echo -e $divid_1
 
 
-read -r -p "准备完毕，是否确认上传 [y/N] " response
-echo $divid_2
+echo -n -e "${y_color}准备完毕，是否确认上传 [y/N]${e_color} "
+read -r response
+echo -e $divid_2
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
-    echo "正在上传，请稍候……"
+    echo -e "${c_color}正在上传，请稍候……"
     appcfg.py update $app_yaml $module_worker_yaml --no_cookie --noauth_local_webserver
     appcfg.py update $source_path --no_cookie --noauth_local_webserver
-    echo "KindleEar 已上传完毕"
+    echo -e $divid_2
+    echo -e "${g_color}上传成功！请访问 https://$appid.appspot.com${e_color}"
 else
     echo "已放弃上传"
 fi
-echo $divid_1
+echo -e $divid_1
