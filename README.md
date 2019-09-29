@@ -9,7 +9,7 @@ chmod +x uploader.sh && \
 ./uploader.sh
 ```
 
-脚本默认拉取的是 KindleEar 官方源代码，如果想要指定其它 KindleEar 项目分支（比如想要上传自己修改的源代码）可在 uploader.sh 后指定 Github 源代码的 URL，如下所示：
+脚本默认拉取的是 KindleEar 官方源代码，如果想要指定其它 KindleEar 项目分支（比如上传自己修改后的源代码），可在指令的 uploader.sh 后附加 Github 源代码的 URL，如下所示：
 
 ```
 rm -f uploader.sh* && \

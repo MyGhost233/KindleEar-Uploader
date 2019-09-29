@@ -191,7 +191,7 @@ if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
     appcfg.py update $app_yaml $module_worker_yaml --no_cookie --noauth_local_webserver
     appcfg.py update $source_path --no_cookie --noauth_local_webserver
     echo -e $divid_2
-    echo -e "${g_color}上传成功！请访问 https://$appid.appspot.com${e_color}"
+    echo -e "应用访问地址：https://$appid.appspot.com"
 else
     echo "已放弃上传"
 fi
