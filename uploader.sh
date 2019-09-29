@@ -4,7 +4,7 @@
 # 名称：KindleEar安装脚本
 # 作者：bookfere.com
 # 页面：https://bookfere.com/post/19.html
-# 更新：2019.09.28
+# 更新：2019.09.29
 # -----------------------------------------------------
 
 r_color="\033[1;91m"
@@ -18,16 +18,19 @@ e_color="\033[0m"
 divid_1="${b_color}==============================================${e_color}"
 divid_2="${b_color}----------------------------------------------${e_color}"
 
-cd ~ && clear
-
-echo -e $divid_1
-echo "准备上传 KindleEar 源代码"
-echo -e $divid_1
-
-
 source_url="https://github.com/cdhigh/KindleEar.git"
-if [[ $1 ]]; then source_url=$1; fi
-source_path=./$(echo $source_url | sed 's/.*\/\(.*\)\.git/\1/')
+if [[ $1 ]]; then
+    http_code=$(curl -o /dev/null -s -w "%{http_code}" $1)
+    if [ $http_code == '000' ]; then
+        echo -e $divid_1
+        echo -e "${r_color}指定连接有问题，请检查"
+        echo -e $divid_1
+        exit 0
+    fi
+    source_url=$1;
+fi
+
+source_path=./$(echo $source_url | sed 's/.*\/\(.*\)/\1/;s/\.git//')
 config_py=$source_path/config.py
 app_yaml=$source_path/app.yaml
 module_worker_yaml=$source_path/module-worker.yaml
@@ -47,53 +50,75 @@ descriptions=(
     "是否将中文名转为拼音？"
     # more...
 )
+interrupt() {
+    echo -e $1$divid_2
+    echo -e "${r_color}已中止上传"
+    echo -e $divid_1
+    exit 0
+}
 
 
+cd ~ && clear
+trap "interrupt \"\n\"" SIGINT
+echo -e $divid_1
+echo "准备上传 KindleEar 源代码"
+echo -e $divid_1
 echo -e "${w_color}来源: $source_url${e_color}"
 echo -e $divid_2
 
-if [ ! -d $source_path ]; then
+get_version() {
+    version='未知'
+    version_file=$source_path/apps/__init__.py
+    if [ -f $version_file ]; then
+        version=$(sed -n "s/^__Version__\ =\ '\(.*\)'/\1/p" $version_file)
+    fi
+    echo $version
+}
+
+clone_code() {
     echo -e "${c_color}开始拉取 KindleEar 源代码"
-    git clone $source_url
+    rm -rf $source_path && git clone $source_url
+    if [ ! -d $source_path -o ! -f $config_py -o ! $app_yaml -o ! $module_worker_yaml ]; then
+        echo -e $divid_2
+        echo -e "${r_color}上传过程出问题，请重新操作"
+        echo -e $divid_1
+        exit 0
+    fi
+    echo "源代码拉取完毕，版本号：$(get_version)"
+}
+
+if [ ! -d $source_path -o ! -f $config_py -o ! $app_yaml -o ! $module_worker_yaml ]; then
+    clone_code
 else
     response="y"
-    echo -n -e ${y_color}"源代码已存在，是否重新拉取？[y/N]${e_color} "
+    echo -n -e ${y_color}"已存在 $(get_version) 版本，重新拉取？[y/N]${e_color} "
     read -r response
     if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
-        echo -e $divid_2
-        echo -e "${c_color}开始拉取 KindleEar 源代码"
         bak_email=$(sed -n "s/^SRC_EMAIL\ =\ \"\(.*\)\".*#.*/\1/p" $config_py)
         bak_appid=$(sed -n "s/^DOMAIN\ =\ \"http\(\|s\):\/\/\(.*\)\.appspot\.com\/\".*#.*/\2/p" $config_py)
-
         for parameter in ${parameters[@]}; do
             eval $parameter=$(sed -n "s/^$parameter\ =\ \(.*\)/\1/p" $config_py)
         done
 
-        rm -rf $source_path && git clone $source_url
+        echo -e $divid_2
+        clone_code
 
         sed -i "s/^SRC_EMAIL\ =\ \".*\"/SRC_EMAIL\ =\ \"$bak_email\"/g" $config_py
         sed -i "s/^application: .*/application: $bak_appid/g" $app_yaml $module_worker_yaml
         sed -i "s/^DOMAIN\ =\ \"http\(\|s\):\/\/.*\.appspot\.com\/\"/DOMAIN\ =\ \"http:\/\/$bak_appid\.appspot\.com\/\"/g" $config_py
-
         for parameter in ${parameters[@]}; do
             eval sed -i "s/^$parameter\ =\ .*/$parameter\ =\ \$$parameter/g" $config_py
         done
     fi
 fi
 
-if [ ! -f $config_py -o ! $app_yaml -o ! $module_worker_yaml ]; then
-    echo -e $divid_2
-    echo -e "${r_color}上传失败${e_color}"
-    echo -e $divid_1
-    exit 0
-fi
 
 email=$(sed -n "s/^SRC_EMAIL\ =\ \"\(.*\)\".*#.*/\1/p" $config_py)
 appid=$(sed -n "s/^DOMAIN\ =\ \"http\(\|s\):\/\/\(.*\)\.appspot\.com\/\".*#.*/\2/p" $config_py)
 
 echo -e ${e_color}$divid_1
 if [ $email = "akindleear@gmail.com" -o $appid = "kindleear" ]; then
-    echo -e "${y_color}请按提示修改必要的 APP 配置参数${e_color}"
+    echo -e "${y_color}请按提示修改 APP 的账户信息${e_color}"
     echo -e $divid_2
 fi
 echo -e "当前的 Gmail 为："${g_color}$email${e_color}
@@ -102,15 +127,31 @@ echo -e "当前的 APPID 为："${g_color}$appid${e_color}
 response="y"
 if [ ! $email = "akindleear@gmail.com" -o ! $appid = "kindleear" ]; then
     echo -e $divid_2
-    echo -n -e "${y_color}是否重新修改 APP 必要配置参数? [y/N]${e_color} "
+    echo -n -e "${y_color}是否重新修改 APP 的账户信息? [y/N]${e_color} "
     read -r response
 fi
 
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
     echo -e $divid_2
-    read -r -p "请输入你的 Gmail 地址：" email
+    while true; do
+        read -r -p "请输入你的 Gmail 地址：" email
+        if [ -n "$email" ]; then
+            break
+        fi
+        echo -e $divid_2
+        echo -e "${r_color}Gmail 不能为空，请重新输入${e_color}"
+        echo -e $divid_2
+    done
+    while true; do
+        read -r -p "请输入你的 APP ID：" appid
+        if [ -n "$appid" ]; then
+            break
+        fi
+        echo -e $divid_2
+        echo -e "${r_color}APP ID 不能为空，请重新输入${e_color}"
+        echo -e $divid_2
+    done
     sed -i "s/^SRC_EMAIL\ =\ \".*\"/SRC_EMAIL\ =\ \"$email\"/g" $config_py
-    read -r -p "请输入你的 APP ID：" appid
     sed -i "s/^application:\ .*/application:\ $appid/g" $app_yaml $module_worker_yaml
     pattern="^DOMAIN\ =\ \"http\(\|s\):\/\/.*\.appspot\.com\/\""
     replace="DOMAIN\ =\ \"http:\/\/$appid\.appspot\.com\/\""
@@ -145,6 +186,7 @@ echo -n -e "${y_color}准备完毕，是否确认上传 [y/N]${e_color} "
 read -r response
 echo -e $divid_2
 if [[ $response =~ ^([yY][eE][sS]|[yY])$ ]]; then
+    trap interrupt SIGINT
     echo -e "${c_color}正在上传，请稍候……"
     appcfg.py update $app_yaml $module_worker_yaml --no_cookie --noauth_local_webserver
     appcfg.py update $source_path --no_cookie --noauth_local_webserver
