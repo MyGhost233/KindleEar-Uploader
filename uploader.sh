@@ -18,7 +18,7 @@ e_color="\033[0m"
 divid_1="${b_color}==============================================${e_color}"
 divid_2="${b_color}----------------------------------------------${e_color}"
 
-source_url="https://github.com/cdhigh/KindleEar.git"
+source_url="https://github.com/MyGhost233/KindleEar.git"
 if [[ $1 ]]; then
     http_code=$(curl -o /dev/null -s -w "%{http_code}" $1)
     if [ $http_code == '000' ]; then
